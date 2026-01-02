@@ -40,14 +40,16 @@ function extractKeywords(resumeText, jobText) {
   const resumeWords = resumeText.match(/\b\w+\b/g) || [];
   const jobWords = jobText.match(/\b\w+\b/g) || [];
   const combined = Array.from(new Set([...resumeWords, ...jobWords]));
+
   const stopWords = [
     "and","the","for","with","your","will","this","that","from","are",
     "use","all","can","you","has","have","including","required","experience",
     "position","job","responsible","duties","skills","activities","perform","performing",
     "functions","general","statement","essential","physical"
   ];
-  return combined.filter(word =>
-    word.length > 2 &&
+
+  return combined.filter(word => 
+    word.length > 2 && 
     /^[a-zA-Z\-]+$/.test(word) &&
     !stopWords.includes(word.toLowerCase())
   );
@@ -58,6 +60,7 @@ function highlightResumeDynamic(resumeText, suggestedKeywords) {
   suggestedKeywords.sort((a,b) => b.length - a.length);
   const escaped = suggestedKeywords.map(k => k.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'));
   const regex = new RegExp(`\\b(${escaped.join("|")})\\b(?=[.,;:]?\\s|$)`, "gi");
+
   return resumeText.split('\n').map(line => {
     const highlighted = line.replace(regex, '<span class="keyword">$1</span>');
     return `<p>${highlighted}</p>`;
@@ -109,23 +112,29 @@ async function callHFApi(prompt) {
       body: JSON.stringify({ prompt })
     });
 
-    // Check content type to prevent parsing HTML as JSON
-    const contentType = response.headers.get("content-type") || "";
-    if (!contentType.includes("application/json")) {
+    // Check for network issues
+    if (!response.ok) {
       const text = await response.text();
-      throw new Error(`Server returned non-JSON response:\n${text}`);
+      aiSuggestions.innerText = `❌ Hugging Face request failed: ${text}`;
+      return;
     }
 
-    const data = await response.json();
+    let data;
+    try {
+      data = await response.json();
+    } catch {
+      aiSuggestions.innerText = "❌ Server returned invalid JSON. Please try again.";
+      return;
+    }
 
     if (data.error) {
       aiSuggestions.innerText = `❌ ${data.error}`;
     } else {
-      aiSuggestions.innerText = data.text;
+      aiSuggestions.innerText = data.text || "✅ AI response received!";
     }
 
   } catch (err) {
-    aiSuggestions.innerText = `❌ ${err.message}`;
+    aiSuggestions.innerText = `❌ Network or server error: ${err.message}. Try again in a few seconds.`;
   } finally {
     spinner.style.display = 'none';
   }
