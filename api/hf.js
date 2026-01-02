@@ -1,10 +1,6 @@
 // api/hf.js
 import fetch from "node-fetch";
 
-export const config = {
-  runtime: "nodejs" // ensures Node runtime instead of Edge
-};
-
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Only POST requests allowed" });
@@ -14,40 +10,44 @@ export default async function handler(req, res) {
     const { prompt } = req.body;
     if (!prompt) return res.status(400).json({ error: "Prompt is required" });
 
-    const HF_MODEL = "YOUR_MODEL_NAME"; // replace with your Hugging Face model name
-    const HF_API_KEY = process.env.HUGGINGFACE_API_KEY;
+    const HF_MODEL = process.env.HF_MODEL_NAME;           // Model name: google/gemma-2-2b-it
+    const HF_API_KEY = process.env.HUGGINGFACE_API_KEY;   // Your Hugging Face key
 
-    if (!HF_API_KEY) {
-      return res.status(500).json({
-        error: "Hugging Face API key missing. Set HUGGINGFACE_API_KEY in Vercel Environment Variables."
-      });
-    }
+    if (!HF_MODEL) return res.status(500).json({ error: "HF_MODEL_NAME environment variable missing" });
+    if (!HF_API_KEY) return res.status(500).json({ error: "HUGGINGFACE_API_KEY environment variable missing" });
 
-    const endpoint = `https://api-inference.huggingface.co/models/${HF_MODEL}`;
-    const response = await fetch(endpoint, {
+    // Hugging Face Router URL
+    const url = `https://api-inference.huggingface.co/models/${HF_MODEL}`;
+
+    const response = await fetch(url, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${HF_API_KEY}`,
+        "Authorization": `Bearer ${HF_API_KEY}`,
         "Content-Type": "application/json"
       },
       body: JSON.stringify({ inputs: prompt })
     });
 
+    // If response is not ok, get text and return error
     if (!response.ok) {
       const text = await response.text();
-      return res.status(response.status).json({
-        error: `Hugging Face API error: ${text || response.statusText}`
-      });
+      return res.status(response.status).json({ error: `Hugging Face API error: ${text}` });
     }
 
-    const data = await response.json();
+    // Parse response safely
+    let data;
+    try {
+      data = await response.json();
+    } catch (parseErr) {
+      return res.status(500).json({ error: `Invalid JSON returned from Hugging Face: ${parseErr.message}` });
+    }
 
-    // Some models return [{ generated_text: "..." }] others may differ
-    let text = "";
+    // Some models return an array with generated_text
+    let text;
     if (Array.isArray(data) && data[0]?.generated_text) {
       text = data[0].generated_text;
-    } else if (typeof data === "object" && data.generated_text) {
-      text = data.generated_text;
+    } else if (typeof data === "string") {
+      text = data;
     } else {
       text = "✅ AI response received!";
     }
@@ -55,10 +55,6 @@ export default async function handler(req, res) {
     return res.status(200).json({ text });
 
   } catch (err) {
-    console.error("Fetch failed:", err);
-    return res.status(500).json({
-      error: "Network fetch failed",
-      details: err.message
-    });
+    return res.status(500).json({ error: `Server error: ${err.message}` });
   }
 }
