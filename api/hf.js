@@ -13,14 +13,14 @@ export default async function handler(req, res) {
     const HF_API_KEY = process.env.HUGGINGFACE_API_KEY;
 
     if (!HF_API_KEY) {
-      return res.status(500).json({ error: "Missing Hugging Face API Key" });
+      return res.status(500).json({ error: "Hugging Face API key missing" });
     }
 
-    // choose a model that supports text generation
+    // any chat-capable model works
     const HF_MODEL = "meta-llama/Llama-2-7b-chat-hf";
 
     const response = await fetch(
-      "https://router.huggingface.co/inference",
+      "https://router.huggingface.cloud/v1/chat/completions",
       {
         method: "POST",
         headers: {
@@ -29,23 +29,34 @@ export default async function handler(req, res) {
         },
         body: JSON.stringify({
           model: HF_MODEL,
-          input: prompt
+          messages: [
+            { role: "user", content: prompt }
+          ]
         })
       }
     );
 
-    // Router returns JSON always
-    const result = await response.json();
+    // sometimes Hugging Face returns text not JSON on error → handle both
+    const raw = await response.text();
 
-    if (result.error) {
-      return res.status(500).json({ error: result.error });
+    let data;
+    try {
+      data = JSON.parse(raw);
+    } catch {
+      return res.status(500).json({
+        error: "Server returned non-JSON response: " + raw
+      });
     }
 
-    // unified output parsing
+    if (!response.ok) {
+      return res.status(response.status).json({
+        error: data.error?.message || JSON.stringify(data)
+      });
+    }
+
     const generated =
-      result.generated_text ??
-      result.output?.[0]?.generated_text ??
-      JSON.stringify(result);
+      data.choices?.[0]?.message?.content ||
+      "No text generated.";
 
     return res.status(200).json({ text: generated });
 
