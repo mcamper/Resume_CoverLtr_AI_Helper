@@ -1,77 +1,49 @@
-# AI Resume Helper
+# Resume & Cover Letter AI Helper
 
-![Status](https://img.shields.io/badge/status-active-success)
-![HTML](https://img.shields.io/badge/HTML-5-orange)
-![CSS](https://img.shields.io/badge/CSS-3-blue)
-![JavaScript](https://img.shields.io/badge/JavaScript-ES6-yellow)
-![Netlify](https://img.shields.io/badge/Hosting-Netlify-brightgreen)
+[![Vercel](https://img.shields.io/badge/Deploy-Vercel-blue?logo=vercel&logoColor=white)](https://vercel.com)
+[![GitHub](https://img.shields.io/badge/GitHub-Repository-black?logo=github&logoColor=white)](https://github.com)
+[![HTML5](https://img.shields.io/badge/HTML5-orange?logo=html5&logoColor=white)]()
+[![CSS3](https://img.shields.io/badge/CSS3-blue?logo=css3&logoColor=white)]()
+[![JavaScript](https://img.shields.io/badge/JavaScript-yellow?logo=javascript&logoColor=black)]()
 ![License](https://img.shields.io/badge/license-MIT-lightgrey)
 
-A web application that helps job seekers optimize resumes and generate tailored cover letters using AI. It highlights missing keywords, shows a match score, and integrates Hugging Face securely through Netlify Functions.
+A web tool to **optimize resumes**, **generate cover letters**, and **suggest improvements** using Hugging Face AI models. Built with **HTML, CSS, JavaScript**, and **Vercel serverless functions**.
 
 ---
 
-## ✨ Features
+## Features
 
-- 🔍 Resume vs Job Description keyword matching  
-- 📊 Match score progress bar  
-- 🟡 Highlighted missing keywords  
-- 🤖 AI-generated cover letters  
-- 🛠 AI resume improvement suggestions  
-- 🌓 Dark Mode toggle  
-- 🌀 Animated loading spinner  
-- 📝 Export resume to Word (keeps bullets + formatting)  
-- 🔐 Hugging Face API secured via Netlify Functions  
+- Paste your resume and job description
+- **Optimize resume**: highlights missing keywords & calculates match score
+- **Generate cover letters** using Hugging Face AI
+- **Suggest improvements** for better alignment with job description
+- Export your resume to **Word** with formatting intact
+- Dark mode toggle
+- AI-powered suggestions without exposing API key
 
 ---
 
-## 🧠 Tech Stack
+## Deployment
 
-- HTML / CSS / JavaScript
-- Netlify Serverless Functions
-- Hugging Face Inference API
-- Secure environment variables
+This project uses **Vercel serverless functions**:
 
----
-
-## 📁 Project Structure
-project-root/
-│ index.html
-│ style.css
-│ script.js
-│
-└─ netlify/
-└─ functions/
-└─ hf.js
+- API function: `/api/hf.js`
+- Model: `google/flan-t5-large`
+- Environment variable: `HUGGINGFACE_API_KEY`
 
 ---
 
-## 🚀 Deployment (Netlify + GitHub)
+## Usage
 
-1. Upload repository files to GitHub
-2. Create a new site in Netlify → **Deploy from GitHub**
-3. Set environment variable:
-   HUGGINGFACE_API_KEY = your_key_here
-
-4. Set **Functions directory**:
-   netlify/functions
-
-5. Redeploy site
+1. Clone the repo and push to GitHub
+2. Connect repo to Vercel
+3. Add environment variable `HUGGINGFACE_API_KEY` in Vercel
+4. Deploy and test buttons:
+   - Optimize Resume
+   - Generate Cover Letter
+   - Suggest Improvements
 
 ---
-
-## 🛡 Security
-
-- No API keys in browser
-- All AI calls route through Netlify function
-- Safe for public hosting
-
----
-
-## ✔ Status
-
-Project is under active development
-
 
 
 
