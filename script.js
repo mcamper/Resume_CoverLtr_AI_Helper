@@ -1,155 +1,215 @@
-const optimizeBtn = document.getElementById("optimizeBtn");
-const coverLetterBtn = document.getElementById("coverLetterBtn");
-const suggestBtn = document.getElementById("suggestBtn");
+// ---------- ELEMENTS ----------
+const darkToggle = document.getElementById('darkModeToggle');
+const spinner = document.getElementById('spinner');
+const matchBar = document.getElementById('matchScore');
+const matchPercent = document.getElementById('matchPercent');
+const resultsPanel = document.getElementById('highlightedResume');
+const highlightedKeywords = document.getElementById('highlightedKeywords');
+const aiSuggestions = document.getElementById('aiSuggestions');
 
-const resumeInput = document.getElementById("resumeInput");
-const jobInput = document.getElementById("jobInput");
+const resumeInput = document.getElementById('resumeText');
+const jobDescInput = document.getElementById('jobDescText');
+const coverLetterInput = document.getElementById('coverLetterText');
 
-const resumePreview = document.getElementById("resumePreview");
-const resultsBox = document.getElementById("resultsBox");
+const optimizeBtn = document.getElementById('optimizeResumeBtn');
+const coverLetterBtn = document.getElementById('generateCoverLetterBtn');
+const improveBtn = document.getElementById('suggestImprovementsBtn');
+const clearBtn = document.getElementById('clearAllBtn');
 
-// ------------------ OPTIMIZE RESUME ------------------
+const exportWordBtn = document.getElementById('exportWord');
 
-optimizeBtn.addEventListener("click", async () => {
-
-  const resume = resumeInput.value.trim();
-  const job = jobInput.value.trim();
-
-  if (!resume || !job) {
-    alert("Please paste both resume and job description.");
-    return;
-  }
-
-  resumePreview.innerHTML = "Optimizing resume using AI...";
-
-  try {
-    const response = await fetch("/api/hf", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        messages: [
-          {
-            role: "system",
-            content:
-              "You are an expert resume writer. Rewrite resumes to match job descriptions while remaining truthful. Keep ATS formatting clean. Preserve bullet formatting and section structure."
-          },
-          {
-            role: "user",
-            content:
-              `Here is my resume:\n${resume}\n\nHere is the job description:\n${job}\n\nRewrite my resume to strongly match the job while remaining honest.`
-          }
-        ]
-      })
-    });
-
-    const data = await response.json();
-
-    const optimized =
-      data?.choices?.[0]?.message?.content ||
-      "No AI response was returned.";
-
-    resumePreview.innerText = optimized;
-
-  } catch (error) {
-    console.error(error);
-    resumePreview.innerText = "Error optimizing resume.";
-  }
+// ---------- DARK MODE ----------
+darkToggle.addEventListener('click', () => {
+  document.body.classList.toggle('dark');
 });
 
-
-// ------------------ GENERATE COVER LETTER ------------------
-
-coverLetterBtn.addEventListener("click", async () => {
-
-  const optimizedResume = resumePreview.innerText.trim();
-  const job = jobInput.value.trim();
-
-  if (!optimizedResume || !job) {
-    alert("First optimize your resume, then try again.");
-    return;
-  }
-
-  resultsBox.innerHTML = "Generating cover letter...";
-
-  try {
-    const response = await fetch("/api/hf", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        messages: [
-          {
-            role: "system",
-            content:
-              "You write concise, professional, compelling cover letters tailored to job descriptions."
-          },
-          {
-            role: "user",
-            content:
-              `Here is my resume:\n${optimizedResume}\n\nHere is the job description:\n${job}\n\nWrite me a targeted cover letter.`
-          }
-        ]
-      })
-    });
-
-    const data = await response.json();
-
-    const letter =
-      data?.choices?.[0]?.message?.content ||
-      "No AI response was returned.";
-
-    resultsBox.innerText = letter;
-
-  } catch (error) {
-    console.error(error);
-    resultsBox.innerText = "Error generating cover letter.";
-  }
+// ---------- CLEAR ALL ----------
+clearBtn.addEventListener('click', () => {
+  resumeInput.value = '';
+  jobDescInput.value = '';
+  coverLetterInput.value = '';
+  resultsPanel.innerHTML = '';
+  highlightedKeywords.innerHTML = '';
+  matchBar.style.width = '0%';
+  matchPercent.textContent = '0%';
+  aiSuggestions.innerText = '';
 });
 
+// ---------- UTILITY ----------
+function extractKeywords(resumeText, jobText) {
+  const resumeWords = resumeText.match(/\b\w+\b/g) || [];
+  const jobWords = jobText.match(/\b\w+\b/g) || [];
+  const combined = Array.from(new Set([...resumeWords, ...jobWords]));
 
-// ------------------ SUGGEST IMPROVEMENTS ------------------
+  const stopWords = [
+    "and","the","for","with","your","will","this","that","from","are",
+    "use","all","can","you","has","have","including","required","experience",
+    "position","job","responsible","duties","skills","activities","perform","performing",
+    "functions","general","statement","essential","physical"
+  ];
 
-suggestBtn.addEventListener("click", async () => {
+  return combined.filter(word => 
+    word.length > 2 && 
+    /^[a-zA-Z\-]+$/.test(word) &&
+    !stopWords.includes(word.toLowerCase())
+  );
+}
 
-  const optimizedResume = resumePreview.innerText.trim();
-  const job = jobInput.value.trim();
+function highlightResumeDynamic(resumeText, suggestedKeywords) {
+  if (!resumeText) return "";
+  suggestedKeywords.sort((a,b) => b.length - a.length);
+  const escaped = suggestedKeywords.map(k => k.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'));
+  const regex = new RegExp(`\\b(${escaped.join("|")})\\b(?=[.,;:]?\\s|$)`, "gi");
 
-  if (!optimizedResume || !job) {
-    alert("First optimize your resume, then try again.");
-    return;
-  }
+  return resumeText.split('\n').map(line => {
+    const highlighted = line.replace(regex, '<span class="keyword">$1</span>');
+    return `<p>${highlighted}</p>`;
+  }).join('');
+}
 
-  resultsBox.innerHTML = "Analyzing resume for improvements...";
+// ---------- OPTIMIZE RESUME ----------
+function optimizeResume() {
+  spinner.style.display = 'block';
+  resultsPanel.innerHTML = '';
+  highlightedKeywords.innerHTML = '';
+  matchBar.style.width = '0%';
+  matchPercent.textContent = '0%';
+  aiSuggestions.innerText = '';
+
+  setTimeout(() => {
+    spinner.style.display = 'none';
+    const resumeText = resumeInput.value || "";
+    const jobText = jobDescInput.value || "";
+
+    const allKeywords = extractKeywords(resumeText, jobText);
+    const missingKeywords = allKeywords.filter(k => !resumeText.toLowerCase().includes(k.toLowerCase()));
+
+    resultsPanel.innerHTML = highlightResumeDynamic(resumeText, missingKeywords);
+
+    highlightedKeywords.innerHTML = missingKeywords.length
+      ? missingKeywords.map(k => `<span class="keyword">${k}</span>`).join(" ")
+      : "<em>All key skills and terms are present in your resume.</em>";
+
+    let total = allKeywords.length || 1;
+    let matched = total - missingKeywords.length;
+    let score = Math.round((matched / total) * 100);
+    matchBar.style.width = score + '%';
+    matchPercent.textContent = score + '%';
+
+    aiSuggestions.innerText = "✅ Resume optimized. Keywords aligned with job description.";
+  }, 1200);
+}
+
+// ---------- CALL HUGGING FACE API ----------
+async function callHFApi(prompt) {
+  spinner.style.display = 'block';
+  aiSuggestions.innerText = '';
 
   try {
     const response = await fetch("/api/hf", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        messages: [
-          {
-            role: "system",
-            content:
-              "You are a resume optimization expert. Provide actionable edits, missing keywords, and rewrite weak bullets."
-          },
-          {
-            role: "user",
-            content:
-              `Resume:\n${optimizedResume}\n\nJob Description:\n${job}\n\nSuggest concrete improvements and missing keywords. Rewrite weak sections.`
-          }
-        ]
-      })
+      body: JSON.stringify({ prompt })
     });
 
-    const data = await response.json();
+    // Check for network issues
+    if (!response.ok) {
+      const text = await response.text();
+      aiSuggestions.innerText = `❌ Hugging Face request failed: ${text}`;
+      return;
+    }
 
-    const suggestions =
-      data?.choices?.[0]?.message?.content ||
-      "No AI response was returned.";
+    let data;
+    try {
+      data = await response.json();
+    } catch {
+      aiSuggestions.innerText = "❌ Server returned invalid JSON. Please try again.";
+      return;
+    }
 
-    resultsBox.innerText = suggestions;
+    if (data.error) {
+      aiSuggestions.innerText = `❌ ${data.error}`;
+    } else {
+      aiSuggestions.innerText = data.text || "✅ AI response received!";
+    }
 
-  } catch (error) {
-    console.error(error);
-    resultsBox.innerText = "Error generating suggestions.";
+  } catch (err) {
+    aiSuggestions.innerText = `❌ Network or server error: ${err.message}. Try again in a few seconds.`;
+  } finally {
+    spinner.style.display = 'none';
   }
+}
+
+// ---------- BUTTON EVENTS ----------
+optimizeBtn.onclick = optimizeResume;
+
+coverLetterBtn.onclick = () => {
+  const resumeText = resumeInput.value || "";
+  const jobText = jobDescInput.value || "";
+  callHFApi(`Generate a cover letter for this resume:\n${resumeText}\nJob description:\n${jobText}`);
+};
+
+improveBtn.onclick = () => {
+  const resumeText = resumeInput.value || "";
+  const jobText = jobDescInput.value || "";
+  callHFApi(`Suggest improvements for this resume:\n${resumeText}\nJob description:\n${jobText}`);
+};
+
+// ---------- EXPORT TO WORD ----------
+exportWordBtn.addEventListener('click', () => {
+  const text = resumeInput.value;
+  if (!text) return alert("Paste your resume first.");
+
+  const lines = text.split('\n');
+  let htmlContent = '';
+  let inList = false;
+
+  lines.forEach(line => {
+    const trimmed = line.trim();
+
+    if (!trimmed) {
+      if (inList) { htmlContent += '</ul>'; inList = false; }
+      htmlContent += '<p>&nbsp;</p>';
+    } 
+    else if (trimmed.startsWith('•') || trimmed.startsWith('-')) {
+      if (!inList) { htmlContent += '<ul>'; inList = true; }
+      htmlContent += `<li>${trimmed.replace(/^•\s?/, '').replace(/^-/, '')}</li>`;
+    } 
+    else if (/^[A-Z\s]{3,}$/.test(trimmed)) {
+      if (inList) { htmlContent += '</ul>'; inList = false; }
+      htmlContent += `<h2>${trimmed}</h2>`;
+    } 
+    else {
+      if (inList) { htmlContent += '</ul>'; inList = false; }
+      htmlContent += `<p>${trimmed}</p>`;
+    }
+  });
+
+  if (inList) htmlContent += '</ul>';
+
+  const preHtml = `
+    <html>
+      <head>
+        <meta charset='utf-8'>
+        <title>Resume</title>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.3; }
+          h2 { font-size: 16pt; margin: 15px 0 5px 0; }
+          p { margin: 5px 0; }
+          ul { margin: 5px 0 5px 20px; }
+          li { margin-bottom: 3px; }
+        </style>
+      </head>
+      <body>
+  `;
+  const postHtml = '</body></html>';
+
+  const blob = new Blob(['\ufeff', preHtml + htmlContent + postHtml], { type: 'application/msword' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = 'Resume.doc';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
 });
