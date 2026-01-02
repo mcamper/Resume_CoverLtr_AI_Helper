@@ -1,24 +1,29 @@
+export const config = {
+  runtime: "nodejs"
+};
+
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Only POST requests allowed" });
   }
 
+  const { prompt } = req.body || {};
+
+  if (!prompt) {
+    return res.status(400).json({ error: "Prompt is required" });
+  }
+
+  const HF_API_KEY = process.env.HUGGINGFACE_API_KEY;
+
+  if (!HF_API_KEY) {
+    return res.status(500).json({
+      error: "Missing HUGGINGFACE_API_KEY in environment"
+    });
+  }
+
+  const HF_MODEL = "meta-llama/Llama-2-7b-chat-hf";
+
   try {
-    const { prompt } = req.body || {};
-
-    if (!prompt) {
-      return res.status(400).json({ error: "Prompt is required" });
-    }
-
-    const HF_API_KEY = process.env.HUGGINGFACE_API_KEY;
-
-    if (!HF_API_KEY) {
-      return res.status(500).json({ error: "Hugging Face API key missing" });
-    }
-
-    // any chat-capable model works
-    const HF_MODEL = "meta-llama/Llama-2-7b-chat-hf";
-
     const response = await fetch(
       "https://router.huggingface.cloud/v1/chat/completions",
       {
@@ -36,15 +41,15 @@ export default async function handler(req, res) {
       }
     );
 
-    // sometimes Hugging Face returns text not JSON on error → handle both
-    const raw = await response.text();
+    const text = await response.text();
 
+    // try decoding JSON
     let data;
     try {
-      data = JSON.parse(raw);
-    } catch {
+      data = JSON.parse(text);
+    } catch (e) {
       return res.status(500).json({
-        error: "Server returned non-JSON response: " + raw
+        error: "Non-JSON response from HuggingFace: " + text
       });
     }
 
@@ -54,15 +59,14 @@ export default async function handler(req, res) {
       });
     }
 
-    const generated =
-      data.choices?.[0]?.message?.content ||
-      "No text generated.";
-
-    return res.status(200).json({ text: generated });
+    return res.status(200).json({
+      text: data.choices?.[0]?.message?.content || "No output."
+    });
 
   } catch (err) {
     return res.status(500).json({
-      error: "Server crashed: " + err.message
+      error: "Network fetch failed",
+      details: err.message
     });
   }
 }
