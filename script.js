@@ -18,36 +18,6 @@ const clearBtn = document.getElementById('clearAllBtn');
 
 const exportWordBtn = document.getElementById('exportWord');
 
-// ---------- CALL NETLIFY FUNCTION ----------
-async function callHuggingFace(prompt) {
-  try {
-    spinner.style.display = 'block';
-
-    const response = await fetch("/.netlify/functions/hf", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({ prompt })
-    });
-
-    const data = await response.json();
-    spinner.style.display = 'none';
-
-    if (data.error) {
-      aiSuggestions.innerText = `❌ API Error: ${data.error}`;
-    } else if (Array.isArray(data)) {
-      aiSuggestions.innerText = data[0].generated_text || JSON.stringify(data);
-    } else {
-      aiSuggestions.innerText = data.generated_text || JSON.stringify(data);
-    }
-
-  } catch (err) {
-    spinner.style.display = 'none';
-    aiSuggestions.innerText = `❌ Network/Error: ${err.message}`;
-  }
-}
-
 // ---------- DARK MODE ----------
 darkToggle.addEventListener('click', () => {
   document.body.classList.toggle('dark');
@@ -65,7 +35,7 @@ clearBtn.addEventListener('click', () => {
   aiSuggestions.innerText = '';
 });
 
-// ---------- UTILITY FUNCTIONS ----------
+// ---------- UTILITY ----------
 function extractKeywords(resumeText, jobText) {
   const resumeWords = resumeText.match(/\b\w+\b/g) || [];
   const jobWords = jobText.match(/\b\w+\b/g) || [];
@@ -130,56 +100,53 @@ function optimizeResume() {
   }, 1200);
 }
 
-// ---------- AI BUTTON FUNCTIONS ----------
-function generateCoverLetter() {
-  const resumeText = resumeInput.value || "";
-  const jobText = jobDescInput.value || "";
+// ---------- VERCEL HUGGING FACE FUNCTION ----------
+async function callHuggingFace(prompt) {
+  spinner.style.display = 'block';
+  aiSuggestions.innerText = '';
 
-  if (!resumeText || !jobText) return alert("Please paste both your resume and job description first.");
+  try {
+    const response = await fetch("/api/hf", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt })
+    });
 
-  const prompt = `
-You are an expert career coach. 
-Generate a professional cover letter based on the following Resume and Job Description.
+    const data = await response.json();
 
-Resume:
-${resumeText}
+    spinner.style.display = 'none';
+    if (data.error) {
+      aiSuggestions.innerText = `❌ Error: ${data.error}`;
+    } else {
+      aiSuggestions.innerText = data.text; // matches api/hf.js
+    }
 
-Job Description:
-${jobText}
-
-Cover Letter:
-`;
-  callHuggingFace(prompt);
-}
-
-function suggestResumeImprovements() {
-  const resumeText = resumeInput.value || "";
-  const jobText = jobDescInput.value || "";
-
-  if (!resumeText || !jobText) return alert("Please paste both your resume and job description first.");
-
-  const prompt = `
-You are an expert career coach. 
-Analyze the following Resume and Job Description. Suggest specific improvements to make the resume more aligned with the job. 
-Focus on missing keywords, structure, quantified achievements, and clarity.
-
-Resume:
-${resumeText}
-
-Job Description:
-${jobText}
-
-Suggestions:
-`;
-  callHuggingFace(prompt);
+  } catch (err) {
+    spinner.style.display = 'none';
+    aiSuggestions.innerText = `❌ Fetch error: ${err.message}`;
+  }
 }
 
 // ---------- BUTTON EVENTS ----------
 optimizeBtn.onclick = optimizeResume;
-coverLetterBtn.onclick = generateCoverLetter;
-improveBtn.onclick = suggestResumeImprovements;
 
-// ---------- EXPORT TO WORD WITH FORMATTING ----------
+coverLetterBtn.onclick = () => {
+  const resumeText = resumeInput.value;
+  const jobText = jobDescInput.value;
+
+  const prompt = `Generate a professional cover letter using this resume:\n${resumeText}\nfor this job description:\n${jobText}`;
+  callHuggingFace(prompt);
+};
+
+improveBtn.onclick = () => {
+  const resumeText = resumeInput.value;
+  const jobText = jobDescInput.value;
+
+  const prompt = `Suggest improvements for this resume:\n${resumeText}\nagainst this job description:\n${jobText}`;
+  callHuggingFace(prompt);
+};
+
+// ---------- EXPORT TO WORD ----------
 exportWordBtn.addEventListener('click', () => {
   const text = resumeInput.value;
   if (!text) return alert("Paste your resume first.");
@@ -190,6 +157,7 @@ exportWordBtn.addEventListener('click', () => {
 
   lines.forEach(line => {
     const trimmed = line.trim();
+
     if (!trimmed) {
       if (inList) { htmlContent += '</ul>'; inList = false; }
       htmlContent += '<p>&nbsp;</p>';
