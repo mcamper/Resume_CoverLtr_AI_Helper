@@ -1,75 +1,78 @@
-// api/hf.js
+export const config = {
+  runtime: "edge",
+};
 
-export default async function handler(req, res) {
-  if (req.method !== "POST") {
-    return res.status(405).json({ error: "Only POST requests allowed" });
-  }
-
-  const { prompt } = req.body;
-
-  if (!prompt || !prompt.trim()) {
-    return res.status(400).json({ error: "Prompt is required" });
-  }
-
-  const HF_API_KEY = process.env.HUGGINGFACE_API_KEY;
-  const HF_MODEL = process.env.HF_MODEL_NAME || "google/gemma-2-2b-it";
-
-  if (!HF_API_KEY) {
-    return res.status(500).json({ error: "Hugging Face API key missing" });
-  }
-
+export default async function handler(req) {
   try {
-    // ✅ CORRECT HOSTNAME
-    // ❌ api.router.huggingface.co  (bad)
-    // ✅ router.huggingface.co       (correct)
-    const response = await fetch(
+    if (req.method !== "POST") {
+      return new Response(
+        JSON.stringify({ error: "Method not allowed" }),
+        { status: 405 }
+      );
+    }
+
+    const body = await req.json();
+
+    if (!body?.messages) {
+      return new Response(
+        JSON.stringify({ error: "Missing messages in request body" }),
+        { status: 400 }
+      );
+    }
+
+    const apiKey = process.env.HF_API_KEY;
+
+    if (!apiKey) {
+      return new Response(
+        JSON.stringify({ error: "HF_API_KEY is not set in environment" }),
+        { status: 500 }
+      );
+    }
+
+    // Call Hugging Face chat completions endpoint
+    const hfResponse = await fetch(
       "https://router.huggingface.co/v1/chat/completions",
       {
         method: "POST",
         headers: {
-          "Authorization": `Bearer ${HF_API_KEY}`,
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
         },
         body: JSON.stringify({
-          model: HF_MODEL,
-          messages: [
-            {
-              role: "user",
-              content: prompt
-            }
-          ]
-        })
+          model: "meta-llama/Meta-Llama-3-8B-Instruct",
+          messages: body.messages,
+          temperature: 0.4,
+          max_tokens: 2048,
+        }),
       }
     );
 
-    // Handle HTTP-level errors cleanly
-    if (!response.ok) {
-      const text = await response.text();
-      return res
-        .status(response.status)
-        .json({ error: `Hugging Face request failed: ${text}` });
+    if (!hfResponse.ok) {
+      const errorText = await hfResponse.text();
+      console.error("HF API Error:", errorText);
+
+      return new Response(
+        JSON.stringify({
+          error: "Hugging Face API returned an error",
+          details: errorText,
+        }),
+        { status: 500 }
+      );
     }
 
-    const data = await response.json();
+    const data = await hfResponse.json();
 
-    // Safely extract generated text
-    const generated =
-      data?.choices?.[0]?.message?.content ||
-      data?.generated_text ||
-      data?.data?.[0]?.generated_text ||
-      "";
-
-    if (!generated) {
-      return res.status(200).json({
-        text:
-          "Request succeeded but no generated text was returned by the model."
-      });
-    }
-
-    return res.status(200).json({ text: generated });
+    return new Response(JSON.stringify(data), {
+      status: 200,
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
   } catch (err) {
-    return res
-      .status(500)
-      .json({ error: `Server error: ${err?.message || "Unknown error"}` });
+    console.error("Server error:", err);
+    return new Response(
+      JSON.stringify({ error: "Server error", details: err.message }),
+      { status: 500 }
+    );
   }
 }

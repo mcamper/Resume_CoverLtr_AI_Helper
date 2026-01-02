@@ -1,71 +1,44 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Resume & Cover Letter AI Helper</title>
-  <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8" />
+  <title>AI Resume Optimizer</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="styles.css" />
 </head>
+
 <body>
 
-  <!-- HEADER -->
   <header>
-    <h1>Resume & Cover Letter AI Helper</h1>
-    <button id="darkModeToggle" class="primary">Toggle Dark Mode</button>
+    <h1>AI Resume Optimizer</h1>
   </header>
 
-  <!-- MAIN APP CONTAINER -->
-  <main class="app-container">
+  <main>
 
-    <!-- INPUT PANELS -->
-    <section class="grid">
-      <div class="card panel">
-        <h2>Resume Text</h2>
-        <textarea id="resumeText" placeholder="Paste your resume here..."></textarea>
-      </div>
-      <div class="card panel">
-        <h2>Job Description</h2>
-        <textarea id="jobDescText" placeholder="Paste job description here..."></textarea>
-      </div>
-      <div class="card panel">
-        <h2>Cover Letter (Optional)</h2>
-        <textarea id="coverLetterText" placeholder="Draft or generate cover letter..."></textarea>
-      </div>
+    <section class="card">
+      <h2>Your Resume</h2>
+      <textarea id="resumeInput" placeholder="Paste your resume here"></textarea>
     </section>
 
-    <!-- ACTION BUTTONS -->
-    <section class="card actions">
-      <button id="optimizeResumeBtn" class="primary">Optimize Resume</button>
-      <button id="generateCoverLetterBtn" class="primary">Generate Cover Letter</button>
-      <button id="suggestImprovementsBtn" class="primary">Suggest Improvements</button>
-      <button id="clearAllBtn" class="secondary">Clear All</button>
+    <section class="card">
+      <h2>Job Description</h2>
+      <textarea id="jobInput" placeholder="Paste the job description here"></textarea>
     </section>
 
-    <!-- RESULTS PANEL -->
-    <section class="card results">
+    <section class="actions">
+      <button id="optimizeBtn">Optimize Resume</button>
+      <button id="coverLetterBtn">Generate Cover Letter</button>
+      <button id="suggestBtn">Suggest Improvements</button>
+    </section>
+
+    <section class="card">
+      <h2>Resume Preview</h2>
+      <div id="resumePreview" contenteditable="true" class="output-box"></div>
+    </section>
+
+    <section class="card">
       <h2>Results</h2>
-
-      <div class="match-score-container">
-        <span>Match Score:</span>
-        <span id="matchPercent">0%</span>
-      </div>
-      <div class="progress-container">
-        <div class="progress-bar" id="matchScore"></div>
-      </div>
-
-      <div class="spinner" id="spinner"></div>
-
-      <h3>Highlighted Resume Preview</h3>
-      <div id="highlightedResume" class="highlighted resume-style"></div>
-
-      <h3>AI Suggestions</h3>
-      <div id="aiSuggestions"></div>
-
-      <h3>Highlighted Keywords</h3>
-      <div id="highlightedKeywords"></div>
-
-      <div class="export-buttons">
-        <button id="exportWord" class="secondary">Export to Word</button>
-      </div>
+      <div id="resultsBox" contenteditable="true" class="output-box"></div>
     </section>
 
   </main>
