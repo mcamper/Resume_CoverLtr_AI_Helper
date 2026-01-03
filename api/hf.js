@@ -5,10 +5,10 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Only POST requests allowed" });
   }
 
-  const { prompt } = req.body;
+  const { messages } = req.body;
 
-  if (!prompt || !prompt.trim()) {
-    return res.status(400).json({ error: "Prompt is required" });
+  if (!messages || !Array.isArray(messages) || messages.length === 0) {
+    return res.status(400).json({ error: "Messages are required" });
   }
 
   const HF_API_KEY = process.env.HUGGINGFACE_API_KEY;
@@ -19,9 +19,6 @@ export default async function handler(req, res) {
   }
 
   try {
-    // ✅ CORRECT HOSTNAME
-    // ❌ api.router.huggingface.co  (bad)
-    // ✅ router.huggingface.co       (correct)
     const response = await fetch(
       "https://router.huggingface.co/v1/chat/completions",
       {
@@ -32,17 +29,11 @@ export default async function handler(req, res) {
         },
         body: JSON.stringify({
           model: HF_MODEL,
-          messages: [
-            {
-              role: "user",
-              content: prompt
-            }
-          ]
+          messages: messages
         })
       }
     );
 
-    // Handle HTTP-level errors cleanly
     if (!response.ok) {
       const text = await response.text();
       return res
@@ -52,7 +43,7 @@ export default async function handler(req, res) {
 
     const data = await response.json();
 
-    // Safely extract generated text
+    // Extract generated text safely
     const generated =
       data?.choices?.[0]?.message?.content ||
       data?.generated_text ||
@@ -61,8 +52,7 @@ export default async function handler(req, res) {
 
     if (!generated) {
       return res.status(200).json({
-        text:
-          "Request succeeded but no generated text was returned by the model."
+        text: "Request succeeded but no generated text was returned by the model."
       });
     }
 
